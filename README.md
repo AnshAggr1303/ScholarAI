@@ -1,60 +1,163 @@
 # 📘 ScholarAI
 
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
-![Next.js](https://img.shields.io/badge/Frontend-Next.js-black)
-![License](https://img.shields.io/badge/License-MIT-blue)
-
-ScholarAI is an AI-powered research paper assistant that allows users to upload academic PDFs and interactively ask questions about their content. It uses vector search (ChromaDB) and a Retrieval-Augmented Generation (RAG) pipeline powered by LLaMA (Groq API) to generate grounded, citation-aware responses.
+ScholarAI is an AI-powered research paper assistant that lets users upload academic PDFs and interactively ask questions about their content. It uses vector search (ChromaDB) and a Retrieval-Augmented Generation (RAG) pipeline powered by LLaMA (Groq API) to generate grounded, citation-aware responses.
 
 ---
 
 ## 🚀 Features
 
-- **📄 PDF Intelligence:** Seamlessly upload and parse complex academic research papers.
-- **🧠 Contextual Q&A:** Get answers grounded strictly in the provided text to minimize hallucinations.
-- **📚 Multi-Paper Sessions:** Manage and query multiple documents within a single session.
-- **📍 Citation-Aware:** Responses include references to specific sections of the source material.
-- **⚡ High Performance:** Lightning-fast inference using **LLaMA 3** hosted on **Groq Cloud**.
-
----
-
-## 🧠 How It Works (High Level)
-
-
-
-1.  **Ingest:** PDF text is extracted (via pdfplumber/PyMuPDF), split into semantic chunks, and embedded using `BGE-small`.
-2.  **Store:** Chunks are saved in **ChromaDB** for efficient similarity searching.
-3.  **Retrieve:** When a user asks a question, the system finds the most relevant text snippets.
-4.  **Generate:** The snippets + user question are sent to **LLaMA (Groq)** to return a final, grounded answer.
+- 📄 Upload research papers (PDF)
+- 🧠 Contextual Q&A based on uploaded content
+- 📚 Handles multiple papers per session
+- 📍 Citation-aware answers
+- 🚀 Fast inference using LLaMA via Groq
 
 ---
 
 ## 📦 Tech Stack
 
 | Component | Technology |
-| :--- | :--- |
-| **Backend** | FastAPI |
-| **Vector Database** | ChromaDB |
-| **Embeddings** | BGE-small |
-| **LLM** | LLaMA via Groq API |
-| **Parsing** | pdfplumber & PyMuPDF |
-| **Deployment** | Hugging Face Spaces |
-| **Frontend** | Next.js (Planned) |
+|-----------|------------|
+| Backend | FastAPI |
+| Vector Database | ChromaDB |
+| Embeddings | BGE-small |
+| LLM | LLaMA via Groq API |
+| Parsing | pdfplumber & PyMuPDF |
+| Deployment | Hugging Face Spaces |
+| Frontend (planned) | Next.js |
 
 ---
 
 ## 📁 Repository Structure
 
-```text
+```
 ScholarAI/
 ├── backend/                # FastAPI backend code
 │   ├── app/
-│   │   ├── routes/         # API endpoints (Upload, Chat, Health)
-│   │   ├── ingest/         # PDF parsing & chunking logic
-│   │   ├── rag/            # RAG logic (Retrieval & LLM)
-│   │   └── session/        # Session manager
-│   ├── chroma_db/          # Vector storage
-│   └── requirements.txt    # Python dependencies
+│   │   ├── routes/        # API endpoints
+│   │   ├── ingest/        # PDF parsing & chunking
+│   │   ├── rag/           # RAG logic
+│   │   └── session/       # Session manager
+│   ├── chroma_db/         # Vector storage
+│   ├── venv/              # Python environment (ignored)
+│   └── requirements.txt
 │
-└── frontend/               # Next.js frontend (To be built)
+└── frontend/              # Next.js frontend (to be built)
+```
+
+---
+
+## 🔧 Installation (Backend)
+
+Clone the repo and create a Python virtual environment:
+
+```bash
+git clone https://github.com/AnshAggr1303/ScholarAI
+cd ScholarAI/backend
+python3 -m venv venv
+source venv/bin/activate   # macOS/Linux
+venv\Scripts\activate      # Windows
+pip install --upgrade pip setuptools wheel
+pip install -r requirements.txt
+```
+
+---
+
+## 📑 Environment Variables
+
+Create a `.env` file inside `backend/`:
+
+```bash
+GROQ_API_KEY=your_groq_api_key
+```
+
+---
+
+## 🚀 Running Backend Locally
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+---
+
+## 📡 API Endpoints
+
+### 🧪 Health Check
+```
+GET /health
+```
+
+### 📤 Upload Paper
+```
+POST /papers/upload
+```
+**Form Data:**
+- `file`: PDF file
+- `session_id`: unique session ID
+
+### 📄 List Active Papers
+```
+GET /papers?session_id={id}
+```
+
+### 💬 Chat / Ask Question
+```
+POST /chat
+```
+**Body:**
+```json
+{
+  "session_id": "abc123",
+  "question": "Explain the methodology",
+  "scope": "all"
+}
+```
+
+---
+
+## 📌 Frontend (Next.js)
+
+Frontend will be a separate Next.js project inside `frontend/`. It will communicate with the backend via REST API endpoints.
+
+**Example service functions:**
+
+```typescript
+// services/api.ts
+export async function uploadPaper(file, sessionId) { ... }
+export async function sendMessage(sessionId, question) { ... }
+```
+
+---
+
+## 🧠 How It Works (High Level)
+
+1. **Upload PDF** → extract text, chunk, embed, store in ChromaDB
+2. **User Questions** → retrieve most relevant chunks → send to LLaMA via Groq → return grounded answer
+3. **Multi-Paper Sessions** → maintain active papers in session → filter retrieval accordingly
+
+---
+
+## 🗂️ Recommended Workflow
+
+1. Backend endpoints first
+2. Frontend integration next
+3. Deployment on Hugging Face Spaces
+
+---
+
+## 📄 Contribution
+
+Feel free to open issues, add features, or improve prompts & UI. All contributions are welcome!
+
+---
+
+## 🔐 License
+
+MIT License © 2026
+
+---
+
+## 📬 Contact
+
+For questions or suggestions, open an issue or reach out via GitHub!
