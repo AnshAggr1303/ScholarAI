@@ -1,6 +1,8 @@
 import uuid
 import shutil
+import tempfile
 from fastapi import APIRouter, UploadFile, Form
+
 from app.ingest.parser import parse_pdf
 from app.ingest.chunker import chunk_text
 from app.ingest.embedder import embed_texts
@@ -15,11 +17,13 @@ async def upload_paper(
     session_id: str = Form(...)
 ):
     paper_id = str(uuid.uuid4())
-    file_path = f"/tmp/{paper_id}.pdf"
 
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    # ✅ Cross-platform temp file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        shutil.copyfileobj(file.file, tmp)
+        file_path = tmp.name
 
+    # ---- RAG pipeline ----
     text = parse_pdf(file_path)
     chunks = chunk_text(text)
     embeddings = embed_texts(chunks)
@@ -29,4 +33,7 @@ async def upload_paper(
     add_chunks(chunks, embeddings, metadatas)
     add_paper_to_session(session_id, paper_id)
 
-    return {"paper_id": paper_id, "chunks": len(chunks)}
+    return {
+        "paper_id": paper_id,
+        "chunks": len(chunks)
+    }
