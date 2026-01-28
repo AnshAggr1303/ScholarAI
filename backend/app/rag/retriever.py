@@ -15,11 +15,10 @@ def add_chunks(chunks, embeddings, metadatas):
         documents=chunks,
         embeddings=embeddings,
         metadatas=metadatas,
-        ids=[str(i) for i in range(len(chunks))]
+        ids=[f"{meta['paper_id']}_{i}" for i, meta in enumerate(metadatas)]
     )
-    client.persist()
 
-def retrieve(query_embedding, paper_ids, k=5):
+def retrieve(query_embedding, paper_ids, k=4):
     where_filter = {"paper_id": {"$in": paper_ids}}
 
     results = collection.query(

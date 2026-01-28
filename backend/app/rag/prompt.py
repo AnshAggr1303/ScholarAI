@@ -1,5 +1,19 @@
+import tiktoken
+
+MAX_CONTEXT_TOKENS = 6000  # safe for Groq free tier
+
 def build_prompt(context_chunks, question):
-    context = "\n\n".join(context_chunks)
+    encoder = tiktoken.get_encoding("cl100k_base")
+
+    context = ""
+    total_tokens = 0
+
+    for chunk in context_chunks:
+        tokens = len(encoder.encode(chunk))
+        if total_tokens + tokens > MAX_CONTEXT_TOKENS:
+            break
+        context += chunk + "\n\n"
+        total_tokens += tokens
 
     return f"""
 You are a research assistant.
