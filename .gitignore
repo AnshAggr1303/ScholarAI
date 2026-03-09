@@ -69,3 +69,8 @@ __pycache__/
 .env
 node_modules/
 .next/
+
+venv/
+backend/model_cache/
+node_modules/
+.next/
