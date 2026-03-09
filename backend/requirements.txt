@@ -1,0 +1,29 @@
+# ===============================
+# ScholarAI Backend Requirements
+# ===============================
+
+# -------- Core API --------
+fastapi==0.110.0
+uvicorn==0.27.1
+python-multipart==0.0.9
+pydantic==2.6.4
+python-dotenv==1.0.1
+
+# -------- Vector Database --------
+chromadb==0.4.24
+
+# -------- Embeddings --------
+sentence-transformers==2.2.2
+huggingface_hub==0.16.4
+torch>=2.0,<2.3
+
+# -------- PDF Processing --------
+pdfplumber==0.10.3
+pymupdf==1.23.26
+
+# -------- LLM API (Groq) --------
+groq==0.5.0
+httpx==0.24.1
+
+# -------- Utilities --------
+numpy==1.26.4
