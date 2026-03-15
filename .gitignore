@@ -1,64 +1,89 @@
-# ===============================
-# ScholarAI .gitignore
-# ===============================
+-------- Global Python --------
 
-# -------- Python / Backend --------
+venv/
+.venv/
+pycache/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+-------- Backend --------
+
 backend/venv/
 backend/.venv/
-backend/__pycache__/
-backend/**/*.pyc
-backend/**/*.pyo
-backend/**/*.pyd
-backend/.pytest_cache/
-backend/.mypy_cache/
-backend/.ruff_cache/
-
-# Python env & secrets
-backend/.env
-backend/*.env
-
-# ChromaDB local storage
+backend/pycache/
 backend/chroma_db/
 backend/.chroma/
-
-# Logs
 backend/*.log
 backend/logs/
 
-# -------- Node / Frontend --------
+Backend env & secrets
+
+backend/.env
+backend/*.env
+
+-------- Frontend --------
+
 frontend/node_modules/
 frontend/.next/
 frontend/out/
 frontend/dist/
+frontend/venv/
+
+Frontend env
+
 frontend/.env.local
 frontend/.env
 
-# Logs
+Frontend logs
+
 frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
 frontend/pnpm-debug.log*
 
-# -------- OS Files --------
-.DS_Store
-Thumbs.db
-desktop.ini
+-------- Root env safety --------
 
-# -------- IDE / Editor --------
+.env
+.env.*
+
+-------- Node global --------
+
+node_modules/
+
+-------- Build / Cache --------
+
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+.cache/
+
+-------- IDE / Editor --------
+
 .vscode/
 .idea/
 *.swp
 *.swo
 *.swn
 
-# -------- Build / Cache --------
-*.egg-info/
-.eggs/
-pip-wheel-metadata/
-.cache/
+-------- OS Files --------
 
-# -------- Misc --------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+-------- Misc --------
+
 *.zip
 *.tar.gz
 *.rar
 *.bak
+
+-------- Hf Cache --------
+
+backend/%CD%/
+backend/hf_cache/
+.hf_cache/

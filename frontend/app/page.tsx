@@ -66,6 +66,7 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -73,9 +74,58 @@ export default function Home() {
     setSessionId(id);
   }, []);
 
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, loading]);
+
+  // Auto-focus input when chat view opens
+  useEffect(() => {
+    if (paperUploaded && chatInputRef.current) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        chatInputRef.current?.focus();
+      }, 100);
+    }
+  }, [paperUploaded]);
+
+  // Global keyboard listener for auto-focus
+  useEffect(() => {
+    const handleGlobalKeyPress = (e: KeyboardEvent) => {
+      // Only auto-focus if:
+      // 1. Chat is open (paperUploaded)
+      // 2. Not currently uploading
+      // 3. Not already focused on an input
+      // 4. Key is alphanumeric or space
+      // 5. No modifier keys (except Shift for capitals)
+      
+      if (!paperUploaded || uploading) return;
+      
+      const target = e.target as HTMLElement;
+      const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+      
+      // Don't interfere if already typing in an input
+      if (isInputFocused) return;
+      
+      // Check if it's a typeable character (alphanumeric, space, punctuation)
+      const isTypeableKey = 
+        e.key.length === 1 && // Single character
+        !e.ctrlKey && 
+        !e.metaKey && 
+        !e.altKey;
+      
+      if (isTypeableKey && chatInputRef.current) {
+        chatInputRef.current.focus();
+        // Let the key naturally appear in the input (don't preventDefault)
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyPress);
+    
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyPress);
+    };
+  }, [paperUploaded, uploading]);
 
   async function handleUpload(selectedFile: File) {
     setUploading(true);
@@ -148,7 +198,7 @@ export default function Home() {
   }
 
   async function handleSend() {
-    if (!input.trim()) return;
+    if (!input.trim() || loading) return;
 
     const userMessage: Message = {
       role: "user",
@@ -171,6 +221,11 @@ export default function Home() {
     }
 
     setLoading(false);
+    
+    // Re-focus input after sending
+    setTimeout(() => {
+      chatInputRef.current?.focus();
+    }, 100);
   }
 
   return (
@@ -408,6 +463,9 @@ export default function Home() {
                   <p className="text-white/40 text-sm">
                     Ask me anything about the paper
                   </p>
+                  <p className="text-white/20 text-xs mt-2">
+                    💡 Just start typing - no need to click!
+                  </p>
                 </div>
               )}
               {messages.map((m, i) => (
@@ -484,6 +542,7 @@ export default function Home() {
                 </div>
 
                 <input
+                  ref={chatInputRef}
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
