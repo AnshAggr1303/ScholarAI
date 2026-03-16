@@ -1,21 +1,21 @@
-from groq import Groq
-from app.config import get_groq_api_key, allow_groq_request
+from groq import Groq, AuthenticationError
+from app.config import GROQ_API_KEYS
 
-def generate_answer(prompt: str) -> str:
-    api_key = get_groq_api_key()
+def generate_answer(prompt: str):
+    for api_key in GROQ_API_KEYS:
+        try:
+            client = Groq(api_key=api_key)
 
-    if not allow_groq_request(api_key):
-        raise RuntimeError("LLM capacity temporarily exhausted")
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+                max_tokens=1024
+            )
 
-    client = Groq(api_key=api_key)
+            return response.choices[0].message.content.strip()
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.2,
-        max_tokens=1024
-    )
+        except AuthenticationError:
+            continue
 
-    return response.choices[0].message.content
+    raise RuntimeError("All Groq API keys failed")

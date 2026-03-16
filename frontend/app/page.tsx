@@ -16,9 +16,25 @@ import {
   Play,
   Check,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { uploadPaper, sendMessage } from "@/services/api";
 import type { Message } from "@/types/chat";
+import dynamic from "next/dynamic";
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
+
+// Dynamic imports for PDF components (client-side only)
+const Document = dynamic(
+  () => import("react-pdf").then((mod) => mod.Document),
+  { ssr: false }
+);
+
+const Page = dynamic(
+  () => import("react-pdf").then((mod) => mod.Page),
+  { ssr: false }
+);
 
 function TypingText({ text }: { text: string }) {
   const [displayedText, setDisplayedText] = useState("");
@@ -54,7 +70,6 @@ function TypingText({ text }: { text: string }) {
 export default function Home() {
   const [sessionId, setSessionId] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -63,9 +78,21 @@ export default function Home() {
   const [uploadPaused, setUploadPaused] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [paperUploaded, setPaperUploaded] = useState(false);
+  
+  // PDF viewer state
+  const [numPages, setNumPages] = useState<number>(1);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pdfWidth, setPdfWidth] = useState(520);
+  
+  // Text selection state
+  const [selectedText, setSelectedText] = useState("");
+  const [selectionPosition, setSelectionPosition] = useState({ x: 0, y: 0 });
+  const [showSelectionMenu, setShowSelectionMenu] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -73,9 +100,110 @@ export default function Home() {
     setSessionId(id);
   }, []);
 
+  // Configure PDF.js worker (client-side only)
+  useEffect(() => {
+    import("react-pdf").then((reactPdf) => {
+      reactPdf.pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+    });
+  }, []);
+
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, loading]);
+
+  // Auto-focus input when chat view opens
+  useEffect(() => {
+    if (paperUploaded && chatInputRef.current) {
+      setTimeout(() => {
+        chatInputRef.current?.focus();
+      }, 100);
+    }
+  }, [paperUploaded]);
+
+  // Responsive PDF width
+  useEffect(() => {
+    const updateWidth = () => {
+      setPdfWidth(window.innerWidth * 0.46);
+    };
+
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+
+    return () => window.removeEventListener("resize", updateWidth);
+  }, []);
+
+  // Global keyboard listener for auto-focus
+  useEffect(() => {
+    const handleGlobalKeyPress = (e: KeyboardEvent) => {
+      if (!paperUploaded || uploading) return;
+      
+      const target = e.target as HTMLElement;
+      const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+      
+      if (isInputFocused) return;
+      
+      const isTypeableKey = 
+        e.key.length === 1 && 
+        !e.ctrlKey && 
+        !e.metaKey && 
+        !e.altKey;
+      
+      if (isTypeableKey && chatInputRef.current) {
+        chatInputRef.current.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyPress);
+    
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyPress);
+    };
+  }, [paperUploaded, uploading]);
+
+  // Text selection listener
+  useEffect(() => {
+    const handleSelection = () => {
+      const text = window.getSelection()?.toString().trim();
+
+      if (text && text.length > 3) {
+        const selection = window.getSelection();
+        const range = selection?.getRangeAt(0);
+        const rect = range?.getBoundingClientRect();
+
+        if (rect) {
+          setSelectedText(text);
+          setSelectionPosition({
+            x: rect.left + rect.width / 2,
+            y: rect.top - 10,
+          });
+          setShowSelectionMenu(true);
+        }
+      } else {
+        setShowSelectionMenu(false);
+      }
+    };
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+
+      if (!target.closest(".selection-menu")) {
+        setShowSelectionMenu(false);
+      }
+    };
+
+    document.addEventListener("mouseup", handleSelection);
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mouseup", handleSelection);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
+    setNumPages(numPages);
+  }
 
   async function handleUpload(selectedFile: File) {
     setUploading(true);
@@ -84,17 +212,12 @@ export default function Home() {
     setUploadComplete(false);
     setFile(selectedFile);
     
-    // Create local URL for PDF preview
-    const url = URL.createObjectURL(selectedFile);
-    setFileUrl(url);
-    
-    // Simulate progress animation
     let progress = 0;
     progressIntervalRef.current = setInterval(() => {
       if (!uploadPaused) {
         progress += Math.random() * 15;
         if (progress >= 90) {
-          progress = 90; // Cap at 90% until actual upload completes
+          progress = 90;
         }
         setUploadProgress(progress);
       }
@@ -103,14 +226,12 @@ export default function Home() {
     try {
       await uploadPaper(selectedFile, sessionId);
       
-      // Clear interval and complete
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
       }
       setUploadProgress(100);
       setUploadComplete(true);
       
-      // Transition to split view after short delay
       setTimeout(() => {
         setPaperUploaded(true);
         setUploading(false);
@@ -121,7 +242,6 @@ export default function Home() {
         clearInterval(progressIntervalRef.current);
       }
       setFile(null);
-      setFileUrl(null);
       setUploading(false);
     }
   }
@@ -137,7 +257,6 @@ export default function Home() {
     setUploading(false);
     setUploadProgress(0);
     setFile(null);
-    setFileUrl(null);
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -148,7 +267,7 @@ export default function Home() {
   }
 
   async function handleSend() {
-    if (!input.trim()) return;
+    if (!input.trim() || loading) return;
 
     const userMessage: Message = {
       role: "user",
@@ -161,22 +280,67 @@ export default function Home() {
 
     try {
       const res = await sendMessage(sessionId, input);
+
       const assistantMessage: Message = {
         role: "assistant",
         content: res.answer,
       };
+
       setMessages((prev) => [...prev, assistantMessage]);
     } catch {
       console.error("Failed to get response");
     }
 
     setLoading(false);
+
+    setTimeout(() => {
+      chatInputRef.current?.focus();
+    }, 100);
+  }
+
+  async function handleSummarizeSelection() {
+    if (!selectedText) return;
+
+    const userMessage: Message = {
+      role: "user",
+      content: `Summarize this selected text:\n"${selectedText}"`,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setLoading(true);
+    setShowSelectionMenu(false);
+
+    try {
+      const res = await sendMessage(
+        sessionId,
+        `Summarize this selected text:\n${selectedText}`
+      );
+
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: res.answer,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch {
+      console.error("Failed to summarize selection");
+    }
+
+    setLoading(false);
+  }
+
+  function handleAskSelection() {
+    setInput(`Explain this:\n"${selectedText}"`);
+    setShowSelectionMenu(false);
+    setTimeout(() => {
+      chatInputRef.current?.focus();
+    }, 50);
   }
 
   return (
     <main className="relative min-h-screen w-full overflow-hidden bg-[radial-gradient(ellipse_at_center,_#1a1c2c_0%,_#0d0e14_100%)]">
       {/* Header */}
-      <header className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4">
+      <header className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 z-10">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-[#e6edf3]" />
           <span className="text-sm font-medium text-[#e6edf3] tracking-wide">
@@ -190,6 +354,34 @@ export default function Home() {
           <LayoutGrid className="h-5 w-5 text-[#7d8590]" />
         </button>
       </header>
+
+      {/* Text Selection Floating Menu */}
+      {showSelectionMenu && (
+        <div
+          className="selection-menu fixed z-50 flex gap-2 px-3 py-2 rounded-xl shadow-2xl"
+          style={{
+            left: selectionPosition.x,
+            top: selectionPosition.y,
+            transform: "translate(-50%, -100%)",
+            background: 'linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.8) 100%)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+          }}
+        >
+          <button
+            onClick={handleSummarizeSelection}
+            className="text-xs text-white/90 px-3 py-1.5 hover:bg-white/10 rounded-lg transition-colors font-medium"
+          >
+            ✨ Summarize
+          </button>
+          <button
+            onClick={handleAskSelection}
+            className="text-xs text-white/90 px-3 py-1.5 hover:bg-white/10 rounded-lg transition-colors font-medium"
+          >
+            💡 Ask
+          </button>
+        </div>
+      )}
 
       {/* Landing View - Before Upload */}
       {!paperUploaded && !uploading && (
@@ -205,7 +397,6 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Central Upload Button - Pill shaped, transparent, no border */}
           <button
             type="button"
             onClick={() => uploadInputRef.current?.click()}
@@ -222,7 +413,6 @@ export default function Home() {
             className="hidden"
           />
 
-          {/* Footer */}
           <p className="absolute bottom-8 text-center text-[#7d8590] text-xs">
             Scholar AI may contain errors. We recommend checking important information.
           </p>
@@ -232,10 +422,8 @@ export default function Home() {
       {/* Uploading State - Liquid iOS Glass Modal */}
       {uploading && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
-          {/* Backdrop with blur */}
           <div className="absolute inset-0 bg-black/40 backdrop-blur-2xl" />
           
-          {/* Liquid Glass Upload Modal */}
           <div 
             className="relative liquid-modal-enter"
             style={{
@@ -252,15 +440,12 @@ export default function Home() {
                 boxShadow: '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
               }}
             >
-              {/* Subtle inner glow */}
               <div className="absolute inset-0 rounded-[2.5rem] opacity-50" style={{
                 background: 'radial-gradient(ellipse at 50% 0%, rgba(88,166,255,0.15) 0%, transparent 60%)'
               }} />
               
-              {/* Progress Ring */}
               <div className="relative w-28 h-28 mx-auto mb-6">
                 <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                  {/* Background ring */}
                   <circle
                     cx="50"
                     cy="50"
@@ -269,7 +454,6 @@ export default function Home() {
                     stroke="rgba(255,255,255,0.08)"
                     strokeWidth="4"
                   />
-                  {/* Progress ring with glow */}
                   <circle
                     cx="50"
                     cy="50"
@@ -293,7 +477,6 @@ export default function Home() {
                   </defs>
                 </svg>
                 
-                {/* Center content */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   {uploadComplete ? (
                     <div className="w-14 h-14 rounded-full flex items-center justify-center fade-in" style={{
@@ -309,7 +492,6 @@ export default function Home() {
                 </div>
               </div>
               
-              {/* File info */}
               <div className="relative text-center mb-5">
                 <p className="text-sm text-white/80 truncate max-w-[200px] mx-auto mb-1">
                   {file?.name}
@@ -319,7 +501,6 @@ export default function Home() {
                 </p>
               </div>
               
-              {/* Controls */}
               {!uploadComplete && (
                 <div className="relative flex items-center justify-center gap-4">
                   <button
@@ -355,7 +536,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Document + Chat Split View - Floating Liquid Glass Aesthetic */}
+      {/* Document + Chat Split View */}
       {paperUploaded && (
         <div className="flex h-screen p-6 pt-20 gap-6">
           {/* Left: Floating Document Viewer */}
@@ -368,24 +549,60 @@ export default function Home() {
               boxShadow: '0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
             }}
           >
-            {/* Minimal file indicator */}
-            <div className="flex items-center gap-2 px-5 py-3">
-              <FileText className="h-4 w-4 text-[#58a6ff]/60" />
-              <span className="text-xs text-white/50 truncate">{file?.name}</span>
+            {/* File indicator */}
+            <div className="flex items-center justify-between px-5 py-3">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-[#58a6ff]/60" />
+                <span className="text-xs text-white/50 truncate">{file?.name}</span>
+              </div>
+              <span className="text-xs text-white/40">
+                Page {currentPage} / {numPages}
+              </span>
             </div>
-            <div className="flex-1 overflow-hidden mx-3 mb-3 rounded-2xl">
-              {fileUrl ? (
-                <iframe
-                  src={fileUrl}
-                  className="w-full h-full rounded-2xl"
-                  title="Document Preview"
-                  style={{ background: 'rgba(255,255,255,0.02)' }}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-white/30">
-                  No document loaded
-                </div>
-              )}
+            
+            {/* PDF Viewer */}
+            <div className="flex-1 overflow-auto px-3 pb-3">
+              <div className="flex justify-center items-start w-full">
+                {file && (
+                  <Document
+                    file={file}
+                    onLoadSuccess={onDocumentLoadSuccess}
+                    className="rounded-2xl overflow-hidden"
+                  >
+                    <Page
+                      pageNumber={currentPage}
+                      renderTextLayer={true}
+                      renderAnnotationLayer={false}
+                      width={pdfWidth}
+                      className="shadow-lg"
+                      loading={<div className="text-white/30">Loading PDF...</div>}
+                    />
+                  </Document>
+                )}
+              </div>
+            </div>
+
+            {/* Page Controls */}
+            <div className="flex items-center justify-center gap-4 py-3 px-5">
+              <button
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => p - 1)}
+                className="p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4 text-white/70" />
+              </button>
+
+              <span className="text-sm text-white/60 min-w-[80px] text-center">
+                {currentPage} of {numPages}
+              </span>
+
+              <button
+                disabled={currentPage >= numPages}
+                onClick={() => setCurrentPage((p) => p + 1)}
+                className="p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors"
+              >
+                <ChevronRight className="h-4 w-4 text-white/70" />
+              </button>
             </div>
           </div>
 
@@ -408,6 +625,12 @@ export default function Home() {
                   <p className="text-white/40 text-sm">
                     Ask me anything about the paper
                   </p>
+                  <p className="text-white/20 text-xs mt-2">
+                    💡 Just start typing - no need to click!
+                  </p>
+                  <p className="text-white/20 text-xs mt-1">
+                    ✨ Or select text in the PDF to summarize
+                  </p>
                 </div>
               )}
               {messages.map((m, i) => (
@@ -428,7 +651,9 @@ export default function Home() {
                       backdropFilter: m.role === "assistant" ? 'blur(10px)' : 'none',
                     }}
                   >
-                    <p className="text-sm leading-relaxed">{m.content}</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-line">
+                      {m.content}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -449,7 +674,7 @@ export default function Home() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Chat Input - Floating pill */}
+            {/* Chat Input */}
             <div className="p-5">
               <div 
                 className="h-12 rounded-full flex items-center px-4 transition-all duration-300"
@@ -484,6 +709,7 @@ export default function Home() {
                 </div>
 
                 <input
+                  ref={chatInputRef}
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
