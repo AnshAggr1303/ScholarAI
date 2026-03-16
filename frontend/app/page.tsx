@@ -198,35 +198,36 @@ export default function Home() {
   }
 
   async function handleSend() {
-    if (!input.trim() || loading) return;
+  if (!input.trim() || loading) return;
 
-    const userMessage: Message = {
-      role: "user",
-      content: input,
+  const userMessage: Message = {
+    role: "user",
+    content: input,
+  };
+
+  setMessages((prev) => [...prev, userMessage]);
+  setInput("");
+  setLoading(true);
+
+  try {
+    const res = await sendMessage(sessionId, input);
+
+    const assistantMessage: Message = {
+      role: "assistant",
+      content: res.answer,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setLoading(true);
-
-    try {
-      const res = await sendMessage(sessionId, input);
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: res.answer,
-      };
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch {
-      console.error("Failed to get response");
-    }
-
-    setLoading(false);
-    
-    // Re-focus input after sending
-    setTimeout(() => {
-      chatInputRef.current?.focus();
-    }, 100);
+    setMessages((prev) => [...prev, assistantMessage]);
+  } catch {
+    console.error("Failed to get response");
   }
+
+  setLoading(false);
+
+  setTimeout(() => {
+    chatInputRef.current?.focus();
+  }, 100);
+}
 
   return (
     <main className="relative min-h-screen w-full overflow-hidden bg-[radial-gradient(ellipse_at_center,_#1a1c2c_0%,_#0d0e14_100%)]">
@@ -486,7 +487,9 @@ export default function Home() {
                       backdropFilter: m.role === "assistant" ? 'blur(10px)' : 'none',
                     }}
                   >
-                    <p className="text-sm leading-relaxed">{m.content}</p>
+                    <p className="text-sm leading-relaxed whitespace-pre-line">
+                      {m.content}
+                    </p>
                   </div>
                 </div>
               ))}
