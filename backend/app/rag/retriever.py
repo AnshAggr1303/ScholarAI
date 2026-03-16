@@ -10,21 +10,43 @@ client = chromadb.Client(
 
 collection = client.get_or_create_collection(name="papers")
 
-def add_chunks(chunks, embeddings, metadatas):
-    collection.add(
-        documents=chunks,
-        embeddings=embeddings,
-        metadatas=metadatas,
-        ids=[f"{meta['paper_id']}_{i}" for i, meta in enumerate(metadatas)]
-    )
 
-def retrieve(query_embedding, paper_ids, k=4):
-    where_filter = {"paper_id": {"$in": paper_ids}}
+def add_chunks(chunks, embeddings, metadatas):
+
+    BATCH_SIZE = 150   # safe for chroma
+
+    for i in range(0, len(chunks), BATCH_SIZE):
+
+        batch_chunks = chunks[i:i+BATCH_SIZE]
+        batch_embeddings = embeddings[i:i+BATCH_SIZE]
+        batch_metadatas = metadatas[i:i+BATCH_SIZE]
+
+        batch_ids = [
+            f"{meta['paper_id']}_{i+j}"
+            for j, meta in enumerate(batch_metadatas)
+        ]
+
+        collection.add(
+            documents=batch_chunks,
+            embeddings=batch_embeddings,
+            metadatas=batch_metadatas,
+            ids=batch_ids
+        )
+
+
+def retrieve(query_embedding, paper_ids, k=10, debug=False):
 
     results = collection.query(
         query_embeddings=[query_embedding],
         n_results=k,
-        where=where_filter
+        where={"paper_id": {"$in": paper_ids}}
     )
 
-    return results["documents"][0]
+    if not results["documents"]:
+        return []
+
+    docs = results["documents"][0]
+
+    print("Retrieved chunks:", docs)
+
+    return docs

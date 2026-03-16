@@ -22,7 +22,10 @@ def chat(req: ChatRequest):
     query_embedding = embed_texts([req.question])[0]
     context_chunks = retrieve(query_embedding, paper_ids)
 
+    # Debug: return the retrieved chunks so we can see what context the LLM is using.
+    debug_chunks = context_chunks[:5] if context_chunks else []
+
     prompt = build_prompt(context_chunks, req.question)
     answer = generate_answer(prompt)
 
-    return {"answer": answer}
+    return {"answer": answer, "debug_retrieved_chunks": debug_chunks}

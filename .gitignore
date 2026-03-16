@@ -12,10 +12,12 @@ backend/**/*.pyd
 backend/.pytest_cache/
 backend/.mypy_cache/
 backend/.ruff_cache/
+backend/app/ingest/temp_images/
 
 # Python env & secrets
 backend/.env
 backend/*.env
+venv/
 
 # ChromaDB local storage
 backend/chroma_db/

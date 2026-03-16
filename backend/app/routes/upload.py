@@ -11,6 +11,10 @@ from app.session.manager import add_paper_to_session
 
 router = APIRouter()
 
+from app.ingest.multimodel_ingest import process_pdf
+
+
+
 @router.post("/upload")
 async def upload_paper(
     file: UploadFile,
@@ -24,16 +28,24 @@ async def upload_paper(
         file_path = tmp.name
 
     # ---- RAG pipeline ----
-    text = parse_pdf(file_path)
-    chunks = chunk_text(text)
-    embeddings = embed_texts(chunks)
+    chunks = process_pdf(file_path)
+    chunk_texts = [c["text"] for c in chunks]
+    embeddings = embed_texts(chunk_texts)
 
-    metadatas = [{"paper_id": paper_id} for _ in chunks]
+    metadatas = [{"paper_id": paper_id, "chunk_type": c["type"]} for c in chunks]
 
-    add_chunks(chunks, embeddings, metadatas)
+    add_chunks(chunk_texts, embeddings, metadatas)
     add_paper_to_session(session_id, paper_id)
+
+    # --- Debug: return first few chunks so we can verify what was ingested.
+    preview_count = min(5, len(chunks))
+    preview = []
+    for i in range(preview_count):
+        text = chunks[i]["text"]
+        preview.append(text if len(text) <= 2000 else text[:2000] + "\n... (truncated)")
 
     return {
         "paper_id": paper_id,
-        "chunks": len(chunks)
+        "chunks": len(chunks),
+        "chunks_preview": preview
     }
