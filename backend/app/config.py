@@ -1,11 +1,15 @@
 import os
+from pathlib import Path
 import itertools
 import time
 from collections import defaultdict
 from threading import Lock
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load environment variables from backend/.env (works regardless of CWD).
+ROOT_DIR = Path(__file__).resolve().parent.parent
+DOTENV_PATH = ROOT_DIR / ".env"
+load_dotenv(DOTENV_PATH)
 
 # =====================
 # GROQ API KEY ROTATION

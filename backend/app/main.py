@@ -1,9 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import upload, chat, session
+import os
 
 app = FastAPI(title="ScholarAI API")
 
+from dotenv import load_dotenv
+load_dotenv()
+
+print("Loaded key:", os.getenv("GROQ_API_KEY"))
 # ✅ CORS configuration
 app.add_middleware(
     CORSMiddleware,

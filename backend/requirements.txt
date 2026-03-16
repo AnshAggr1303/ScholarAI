@@ -14,12 +14,17 @@ chromadb==0.4.24
 
 # -------- Embeddings --------
 sentence-transformers==2.2.2
-huggingface_hub==0.16.4
-torch>=2.0,<2.3
+transformers==4.36.2
+huggingface_hub==0.20.3
+torch==2.1.2
 
 # -------- PDF Processing --------
 pdfplumber==0.10.3
 pymupdf==1.23.26
+
+# -------- Table Extraction --------
+camelot-py==0.10.1
+opencv-python-headless==4.9.0.80
 
 # -------- LLM API (Groq) --------
 groq==0.5.0
@@ -27,3 +32,6 @@ httpx==0.24.1
 
 # -------- Utilities --------
 numpy==1.26.4
+pillow==10.2.0
+
+PyPDF2==2.12.1
