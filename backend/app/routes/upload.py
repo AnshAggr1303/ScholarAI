@@ -27,18 +27,19 @@ async def upload_paper(
         file_path = tmp.name
 
     # ---- RAG pipeline ----
-    chunks = process_pdf(file_path)
-    chunk_texts = [c["text"] for c in chunks]
-    embeddings = embed_texts(chunk_texts)
-    text = parse_pdf(file_path)
-    chunks = chunk_text(text)
+    try:
+        chunks = process_pdf(file_path)
+        chunk_texts = [c["text"] for c in chunks]
+        embeddings = embed_texts(chunk_texts)
 
-    embeddings = embed_texts(chunks)
+        metadatas = [{"paper_id": paper_id, "chunk_type": c["type"]} for c in chunks]
 
-    metadatas = [{"paper_id": paper_id, "chunk_type": c["type"]} for c in chunks]
-
-    add_chunks(chunk_texts, embeddings, metadatas)
-    add_paper_to_session(session_id, paper_id)
+        add_chunks(chunk_texts, embeddings, metadatas)
+        add_paper_to_session(session_id, paper_id)
+    finally:
+        import os
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
     # --- Debug: return first few chunks so we can verify what was ingested.
     preview_count = min(5, len(chunks))
