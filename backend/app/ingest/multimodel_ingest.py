@@ -18,6 +18,8 @@ def process_pdf(pdf_path):
 
     title = parsed["title"]
 
+    page_map = {p["page"]: p for p in parsed["pages"]}
+
     # ---------- TEXT ----------
     text_chunks = chunk_text(parsed)
     for c in text_chunks:
@@ -30,7 +32,7 @@ def process_pdf(pdf_path):
         page_num = table_obj.get("page")
         captions_str = ""
         if page_num:
-            page_data = next((p for p in parsed["pages"] if p["page"] == page_num), None)
+            page_data = page_map.get(page_num)
             if page_data and page_data.get("figure_table_captions"):
                 captions_str = "\n".join(page_data["figure_table_captions"])
 
@@ -52,7 +54,7 @@ Table Content:
     for img in images:
         page_num = img["page"]
         captions_str = ""
-        page_data = next((p for p in parsed["pages"] if p["page"] == page_num), None)
+        page_data = page_map.get(page_num)
         if page_data and page_data.get("figure_table_captions"):
             captions_str = "\n".join(page_data["figure_table_captions"])
 
