@@ -19,7 +19,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Moon,
+  Sun,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { uploadPaper, sendMessage } from "@/services/api";
 import type { Message } from "@/types/chat";
 import ReactMarkdown from "react-markdown";
@@ -71,6 +74,7 @@ function TypingText({ text }: { text: string }) {
 }
 
 export default function Home() {
+  const { theme, setTheme } = useTheme();
   const [sessionId, setSessionId] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -356,7 +360,7 @@ export default function Home() {
   }
 
   return (
-    <main className="relative min-h-screen w-full overflow-hidden bg-[radial-gradient(ellipse_at_center,_#1a1c2c_0%,_#0d0e14_100%)]">
+    <main className="relative min-h-screen w-full overflow-hidden bg-[radial-gradient(ellipse_at_center,_#f0f4f8_0%,_#e2e8f0_100%)] dark:bg-[radial-gradient(ellipse_at_center,_#1a1c2c_0%,_#0d0e14_100%)]">
       {/* Header */}
       <header className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 z-10">
         <div className="flex items-center gap-2">
@@ -365,12 +369,26 @@ export default function Home() {
             Scholar AI
           </span>
         </div>
-        <button
-          type="button"
-          className="p-2 rounded-lg hover:bg-white/5 transition-colors"
-        >
-          <LayoutGrid className="h-5 w-5 text-[#7d8590]" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="p-2 rounded-lg hover:bg-white/5 dark:hover:bg-white/5 hover:bg-black/5 transition-colors"
+            aria-label="Toggle dark mode"
+          >
+            {theme === "dark" ? (
+              <Sun className="h-5 w-5 text-[#7d8590]" />
+            ) : (
+              <Moon className="h-5 w-5 text-[#7d8590]" />
+            )}
+          </button>
+          <button
+            type="button"
+            className="p-2 rounded-lg hover:bg-white/5 transition-colors"
+          >
+            <LayoutGrid className="h-5 w-5 text-[#7d8590]" />
+          </button>
+        </div>
       </header>
 
       {/* Text Selection Floating Menu */}
