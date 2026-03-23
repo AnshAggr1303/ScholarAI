@@ -1,5 +1,8 @@
+import logging
 import chromadb
 from app.config import CHROMA_PATH
+
+logger = logging.getLogger(__name__)
 
 client = chromadb.Client(
     chromadb.config.Settings(
@@ -47,6 +50,6 @@ def retrieve(query_embedding, paper_ids, k=10, debug=False):
 
     docs = results["documents"][0]
 
-    print("Retrieved chunks:", docs)
+    logger.info("Retrieved chunks: %s", docs)
 
     return docs

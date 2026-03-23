@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -6,12 +7,18 @@ import os
 import time
 from collections import defaultdict
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="ScholarAI API")
 
 from dotenv import load_dotenv
 load_dotenv()
 
-print("Loaded key:", os.getenv("GROQ_API_KEY"))
+logger.info("Loaded key: %s", os.getenv("GROQ_API_KEY"))
 
 # Rate limiter for /chat: 20 requests per minute per client IP
 _chat_timestamps: dict = defaultdict(list)
