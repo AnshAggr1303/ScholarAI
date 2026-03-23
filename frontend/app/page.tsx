@@ -18,6 +18,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from "lucide-react";
 import { uploadPaper, sendMessage } from "@/services/api";
 import type { Message } from "@/types/chat";
@@ -331,6 +332,21 @@ export default function Home() {
     setLoading(false);
   }
 
+  function handleExportChat() {
+    if (messages.length === 0) return;
+    const lines: string[] = [`# Scholar AI Chat Export\n`, `**Paper:** ${file?.name ?? "Unknown"}\n`];
+    for (const m of messages) {
+      lines.push(`\n---\n\n**${m.role === "user" ? "You" : "Scholar AI"}:**\n\n${m.content}`);
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "scholar-ai-chat.md";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function handleAskSelection() {
     setInput(`Explain this:\n"${selectedText}"`);
     setShowSelectionMenu(false);
@@ -619,6 +635,20 @@ export default function Home() {
               animationDelay: '0.1s'
             }}
           >
+            {/* Chat Header */}
+            <div className="flex items-center justify-end px-5 py-3 shrink-0">
+              <button
+                type="button"
+                onClick={handleExportChat}
+                disabled={messages.length === 0}
+                title="Export chat as Markdown"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-white/50 hover:text-white/80 hover:bg-white/5 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export
+              </button>
+            </div>
+
             {/* Chat Messages */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {messages.length === 0 && (
