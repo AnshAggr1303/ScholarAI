@@ -1,154 +1,228 @@
 # 📘 ScholarAI
 
-ScholarAI is an AI-powered research paper assistant that lets users upload academic PDFs and interactively ask questions about their content. It uses vector search (ChromaDB) and a Retrieval-Augmented Generation (RAG) pipeline powered by LLaMA (Groq API) to generate grounded, citation-aware responses.
+AI-powered research paper assistant that lets users upload academic PDFs and interactively ask questions. Uses ChromaDB vector search and RAG pipeline powered by LLaMA (Groq API).
 
 ---
 
 ## 🚀 Features
 
-- 📄 Upload research papers (PDF)
-- 🧠 Contextual Q&A based on uploaded content
-- 📚 Handles multiple papers per session
+**Backend:**
+- 📄 Upload PDFs & contextual Q&A
+- 📚 Multi-paper sessions
 - 📍 Citation-aware answers
-- 🚀 Fast inference using LLaMA via Groq
+
+**Frontend:**
+- 📱 Interactive PDF viewer with selectable text
+- ✨ Text selection → Summarize/Ask menu
+- ⌨️ Auto-focus typing (press any key)
+- 📜 Auto-scroll & smooth animations
 
 ---
 
 ## 📦 Tech Stack
 
-| Component | Technology |
-|-----------|------------|
-| Backend | FastAPI |
-| Vector Database | ChromaDB |
-| Embeddings | BGE-small |
-| LLM | LLaMA via Groq API |
-| Parsing | pdfplumber & PyMuPDF |
-| Deployment | Hugging Face Spaces |
-| Frontend (planned) | Next.js |
+| Component | Backend | Frontend |
+|-----------|---------|----------|
+| Framework | FastAPI | Next.js 14 + React 18 |
+| Database | ChromaDB | - |
+| LLM | LLaMA (Groq) | - |
+| Styling | - | Tailwind CSS |
+| PDF | pdfplumber, PyMuPDF | react-pdf |
+| Language | Python | TypeScript |
 
 ---
 
-## 📁 Repository Structure
-
+## 📁 Structure
 ```
 ScholarAI/
-├── backend/                # FastAPI backend code
+├── backend/
 │   ├── app/
 │   │   ├── routes/        # API endpoints
-│   │   ├── ingest/        # PDF parsing & chunking
+│   │   ├── ingest/        # PDF parsing
 │   │   ├── rag/           # RAG logic
 │   │   └── session/       # Session manager
-│   ├── chroma_db/         # Vector storage
-│   ├── venv/              # Python environment (ignored)
 │   └── requirements.txt
 │
-└── frontend/              # Next.js frontend (to be built)
+└── frontend/
+    ├── public/
+    │   └── pdf.worker.min.js
+    ├── src/
+    │   ├── app/
+    │   │   ├── page.tsx
+    │   │   └── globals.css
+    │   ├── services/
+    │   │   └── api.ts
+    │   └── types/
+    │       └── chat.ts
+    └── package.json
 ```
 
 ---
 
-## 🔧 Installation (Backend)
+## 🔧 Installation
 
-Clone the repo and create a Python virtual environment:
-
+### Backend
 ```bash
 git clone https://github.com/AnshAggr1303/ScholarAI
 cd ScholarAI/backend
 python3 -m venv venv
-source venv/bin/activate   # macOS/Linux
-venv\Scripts\activate      # Windows
-pip install --upgrade pip setuptools wheel
+source venv/bin/activate
 pip install -r requirements.txt
+```
+
+### Frontend
+```bash
+cd ../frontend
+npm install
+npm install react-pdf
+
+# Download PDF worker
+cp node_modules/pdfjs-dist/build/pdf.worker.min.js public/
 ```
 
 ---
 
 ## 📑 Environment Variables
 
-Create a `.env` file inside `backend/`:
-
+**Backend** (`.env`):
 ```bash
 GROQ_API_KEY=your_groq_api_key
 ```
 
+**Frontend** (`.env.local`):
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
 ---
 
-## 🚀 Running Backend Locally
+## 🚀 Running
 
+**Backend:**
 ```bash
+cd backend
 uvicorn app.main:app --reload --port 8000
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm run dev
 ```
 
 ---
 
 ## 📡 API Endpoints
 
-### 🧪 Health Check
-```
-GET /health
-```
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/papers/upload` | POST | Upload PDF |
+| `/papers?session_id={id}` | GET | List papers |
+| `/chat` | POST | Ask question |
 
-### 📤 Upload Paper
-```
-POST /papers/upload
-```
-**Form Data:**
-- `file`: PDF file
-- `session_id`: unique session ID
-
-### 📄 List Active Papers
-```
-GET /papers?session_id={id}
-```
-
-### 💬 Chat / Ask Question
-```
-POST /chat
-```
-**Body:**
+**Chat Request:**
 ```json
 {
   "session_id": "abc123",
-  "question": "Explain the methodology",
-  "scope": "all"
+  "question": "Explain the methodology"
 }
 ```
 
 ---
 
-## 📌 Frontend (Next.js)
+## 🎨 Key Frontend Features
 
-Frontend will be a separate Next.js project inside `frontend/`. It will communicate with the backend via REST API endpoints.
-
-**Example service functions:**
-
+### 1. Text Selection
 ```typescript
-// services/api.ts
-export async function uploadPaper(file, sessionId) { ... }
-export async function sendMessage(sessionId, question) { ... }
+// Select text in PDF → floating menu appears
+useEffect(() => {
+  const handleSelection = () => {
+    const text = window.getSelection()?.toString().trim();
+    if (text && text.length > 3) {
+      setShowSelectionMenu(true);
+    }
+  };
+  document.addEventListener("mouseup", handleSelection);
+}, []);
+```
+
+### 2. Auto-Focus Typing
+```typescript
+// Press any key → input focuses automatically
+useEffect(() => {
+  const handleGlobalKeyPress = (e: KeyboardEvent) => {
+    if (isTypeableKey && chatInputRef.current) {
+      chatInputRef.current.focus();
+    }
+  };
+  window.addEventListener('keydown', handleGlobalKeyPress);
+}, []);
+```
+
+### 3. Auto-Scroll
+```typescript
+// New message → scroll to bottom
+useEffect(() => {
+  messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+}, [messages]);
 ```
 
 ---
 
-## 🧠 How It Works (High Level)
-
-1. **Upload PDF** → extract text, chunk, embed, store in ChromaDB
-2. **User Questions** → retrieve most relevant chunks → send to LLaMA via Groq → return grounded answer
-3. **Multi-Paper Sessions** → maintain active papers in session → filter retrieval accordingly
+## 📦 Frontend Dependencies
+```json
+{
+  "dependencies": {
+    "react": "^18.2.0",
+    "next": "^14.0.0",
+    "react-pdf": "^7.7.0",
+    "lucide-react": "^0.263.1",
+    "typescript": "^5.0.0"
+  }
+}
+```
 
 ---
 
-## 🗂️ Recommended Workflow
+## 🧠 How It Works
 
-1. Backend endpoints first
-2. Frontend integration next
-3. Deployment on Hugging Face Spaces
+1. **Upload PDF** → Extract text → Chunk → Embed → Store in ChromaDB
+2. **User Question** → Retrieve relevant chunks → Send to LLaMA → Return answer
+3. **Frontend** → Display PDF → Select text → Chat with AI → Auto-scroll
+
+---
+
+## 🧪 Testing Checklist
+
+- [ ] PDF uploads successfully
+- [ ] Text selection menu works
+- [ ] Auto-focus on keypress
+- [ ] Chat messages send/receive
+- [ ] Auto-scroll triggers
+- [ ] Page navigation works
+
+---
+
+## 🚀 Deployment
+
+**Backend:** Hugging Face Spaces  
+**Frontend:** Vercel/Netlify
+```bash
+# Frontend build
+npm run build
+vercel --prod
+```
 
 ---
 
 ## 📄 Contribution
 
-Feel free to open issues, add features, or improve prompts & UI. All contributions are welcome!
+Contributions welcome! Open issues or PRs for:
+- UI/UX improvements
+- Additional features
+- Bug fixes
+- Documentation
 
 ---
 
@@ -160,4 +234,6 @@ MIT License © 2026
 
 ## 📬 Contact
 
-For questions or suggestions, open an issue or reach out via GitHub!
+**GitHub:** [@AnshAggr1303](https://github.com/AnshAggr1303)
+
+Built with ❤️ for researchers 🎓
